@@ -1,8 +1,10 @@
 use std::fs::File;
 use std::io::prelude::*;
+use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use serde_json as json;
+use log::info;
 
 use crate::error::Error;
 
@@ -57,4 +59,15 @@ pub fn removeItem(item: &ItemKey) -> Result<(), Error>
         }
     }
     saveItems(items)
+}
+
+pub fn initialize() -> Result<(), Error>
+{
+    let path = Path::new(DATA_FILE);
+    if !path.exists()
+    {
+        info!("Creating data store...");
+        saveItems(Vec::new())?;
+    }
+    Ok(())
 }

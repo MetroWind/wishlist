@@ -102,6 +102,12 @@ fn main()
                 Err(e) => { log_error!("{}", e); exit(2); },
             };
 
+            if let Err(e) = data::initialize()
+            {
+                log_error!("{}", e);
+                exit(3);
+            }
+
             info!("Wishlist service starting...");
             web::start(conf.url_prefix);
             exit(0);
