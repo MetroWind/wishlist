@@ -1,0 +1,24 @@
+on: [push]
+
+name: Build head
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release
+
+      - run: strip target/release/wishlist
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: wishlist
+          path: target/release/wishlist
