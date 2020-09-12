@@ -75,10 +75,8 @@ fn loadConfig(specified: Option<&str>) -> Result<config::ConfigParams, Error>
     readConfig(&conf_file)
 }
 
-fn main()
+fn realMain() -> Result<(), Error>
 {
-    stderrlog::new().verbosity(2).init().unwrap();
-
     let opts = clap::App::new("Wishlist service")
         .version("0.1")
         .author("MetroWind <chris.corsair@gmail.com>")
@@ -90,39 +88,56 @@ fn main()
              .takes_value(true))
         .subcommand(clap::App::new("serve")
                     .about("Start API server"))
+        .subcommand(clap::App::new("add")
+                    .about("Add item")
+                    .arg(clap::Arg::with_name("store")
+                         .required(true)
+                         .help("Store name"))
+                    .arg(clap::Arg::with_name("id")
+                         .required(true)
+                         .help("Item ID")))
         .get_matches();
 
     match opts.subcommand_name()
     {
         Some("serve") =>
         {
-            let conf = match loadConfig(opts.value_of("config"))
-            {
-                Ok(conf) => conf,
-                Err(e) => { log_error!("{}", e); exit(2); },
-            };
-
-            if let Err(e) = data::initialize()
-            {
-                log_error!("{}", e);
-                exit(3);
-            }
-
+            let conf = loadConfig(opts.value_of("config"))?;
+            data::initialize()?;
             info!("Wishlist service starting...");
-            web::start(conf.url_prefix);
-            exit(0);
+            web::start(&conf);
+        },
+
+        Some("add") =>
+        {
+            let subopts = opts.subcommand_matches("add").unwrap();
+            let key = data::ItemKey{
+                store: subopts.value_of("store").unwrap().to_owned(),
+                id: subopts.value_of("id").unwrap().to_owned(),
+            };
+            data::initialize()?;
+            data::addItem(&key)?;
         },
 
         None =>
         {
             println!("{}", opts.usage());
-            exit(0);
         },
 
         Some(a) =>
         {
-            log_error!("Unknown command: {}", a);
-            exit(-1);
+            return Err(error!(RuntimeError, format!("Unknown command: {}", a)));
         },
+    }
+    Ok(())
+}
+
+fn main()
+{
+    stderrlog::new().module(module_path!()).verbosity(3).init().unwrap();
+    if let Err(e) = realMain()
+    {
+        log_error!("{}", e);
+        exit(1);
     }
 }

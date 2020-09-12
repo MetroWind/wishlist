@@ -22,10 +22,11 @@ id=${encodeURIComponent(this.props.id)}`;
 
     render()
     {
-        return e("li", null,
-                 e("span", null,
-                   e("a", {"href": this.state.url}, this.state.name)),
-                 e("span", null, this.state.price),
+        return e("li", {className: "ListItem"},
+                 e("span", {className: "ItemName"},
+                   e("a", {"href": this.state.url, className: "ItemLink"},
+                     this.state.name)),
+                 e("span", {className: "ItemPrice"}, this.state.price),
                 );
     }
 }
@@ -48,9 +49,9 @@ class WishList extends React.Component
     render()
     {
         let items = this.state.items.map((s) => e(WishListItem, {store: s.store, id: s.id, key: s.id}));
-        return e("ul", null, items);
+        return e("ul", {id: "Wishlist"}, items);
     }
 }
 
-ReactDOM.render(e(WishList, null), document.getElementById('Wishlist'));
+ReactDOM.render(e(WishList, null), document.getElementById('WishlistWrapper'));
 console.log("Loaded.");

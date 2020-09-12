@@ -1,12 +1,15 @@
+use std::sync::Arc;
+
 use serde::{Deserialize, Serialize};
 use tokio;
 use warp::{Filter, Rejection};
 use warp::reply::Reply;
 use warp::http;
 use log::error as log_error;
+use log::info;
 
-use crate::store;
 use crate::data;
+use crate::config;
 
 const ENTRY: &str = "api";
 
@@ -67,35 +70,35 @@ async fn list() -> Result<Box<dyn Reply>, Rejection>
     Ok(Box::new(warp::reply::json(&items)))
 }
 
-async fn get(q: data::ItemKey) -> Result<Box<dyn Reply>, Rejection>
+async fn get(q: data::ItemKey, cache: &data::Cache) -> Result<Box<dyn Reply>, Rejection>
 {
-    let s = match store::Store::new(&q.store)
-    {
-        Ok(s) => s,
-        Err(_) => { return Ok(replyError(500, "Invalid store")); },
-    };
-
-    match s.get(&q.id).await
+    match cache.get(&q).await
     {
         Ok(i) => Ok(Box::new(warp::reply::json(&i))),
-        Err(_) => Ok(replyError(500, "Failed to get price")),
+        Err(e) => Ok(replyError(500, &e.to_string())),
     }
 }
 
-pub fn start(prefix: Option<String>)
+pub fn start(conf: &config::ConfigParams)
 {
+    let cache = Arc::new(data::Cache::new());
     let route_list = warp::path(ENTRY).and(warp::path("list"))
         .and(warp::path::end())
         .and_then(list);
 
     let route_get = warp::path(ENTRY).and(warp::path("get"))
         .and(warp::query::<data::ItemKey>())
-        .and_then(get);
+        .and_then(move |key: data::ItemKey| {
+            let cache = cache.clone();
+            async move { get(key, &cache).await }
+        });
 
     let route_fe = warp::any().and(warp::fs::dir("frontend"));
 
     let mut rt = tokio::runtime::Runtime::new().unwrap();
-    rt.block_on(warp::serve(withOptionalPrefix(prefix)
+    info!("Running service at http://127.0.0.1:{}/{}", conf.port,
+          conf.url_prefix.as_ref().unwrap_or(&String::new()));
+    rt.block_on(warp::serve(withOptionalPrefix(conf.url_prefix.clone())
                             .and(route_list.or(route_get).or(route_fe)))
-                .run(([127, 0, 0, 1], 8000)));
+                .try_bind(([127, 0, 0, 1], conf.port)));
 }

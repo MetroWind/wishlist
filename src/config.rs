@@ -13,13 +13,14 @@ pub struct ConfigParams
     /// one. Without leading and trailing slashes. Currently this only
     /// support up to 2 levels (1 slash at most in the string)…
     pub url_prefix: Option<String>,
+    pub port: u16,
 }
 
 impl ConfigParams
 {
     pub fn default() -> Self
     {
-        Self { url_prefix: None }
+        Self { url_prefix: None, port: 8000 }
     }
 
     pub fn fromFile(filename: &std::path::Path) -> Result<Self, Error>

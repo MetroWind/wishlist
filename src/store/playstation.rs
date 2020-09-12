@@ -27,7 +27,7 @@ impl PlayStation
         }
     }
 
-    fn url(&self, id: &str) -> String
+    fn dataURL(&self, id: &str) -> String
     {
         format!("https://store.playstation.com/valkyrie-api/{}/19/resolve/{}",
                 self.region, id)
@@ -35,7 +35,7 @@ impl PlayStation
 
     pub async fn get(&self, id: &str) -> Result<ItemInfo, Error>
     {
-        let url = self.url(id);
+        let url = self.dataURL(id);
         let content = utils::get(&url).await?;
         let data: json::Value = serde_json::from_str(&content).map_err(
             |_| error!(RuntimeError, "Failed to parse JSON"))?;
@@ -45,11 +45,12 @@ impl PlayStation
         {
             if let Some(game_type) = item["attributes"]["game-content-type"].as_str()
             {
-                if game_type == "Full Game"
+                if game_type == "Full Game" || game_type == "PSN Game"
                 {
                     let name = item["attributes"]["name"].as_str().ok_or(
                         error!(RuntimeError, "Failed to get item name"))?;
-                    let price_obj = &item["attributes"]["skus"][0]["prices"]["non-plus-user"]["actual-price"];
+                    let price_obj = &item["attributes"]["skus"][0]["prices"]
+                        ["non-plus-user"]["actual-price"];
                     let price = price_obj["value"].as_i64().ok_or(
                         error!(RuntimeError, "Failed to get price"))?;
                     let price_str = price_obj["display"].as_str().ok_or(
@@ -58,7 +59,7 @@ impl PlayStation
                         name: name.to_owned(),
                         store: self.name.to_owned(),
                         id: id.to_owned(),
-                        url: url,
+                        url: format!("https://store.playstation.com/en-us/product/{}", id),
                         price: price,
                         price_str: price_str.to_owned() });
                 }

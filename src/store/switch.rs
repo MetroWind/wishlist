@@ -27,7 +27,7 @@ impl Switch
         }
     }
 
-    fn url(&self, id: &str) -> String
+    fn dataURL(&self, id: &str) -> String
     {
         format!("https://www.nintendo.com/games/detail/{}/", id)
     }
@@ -35,7 +35,7 @@ impl Switch
     pub async fn get(&self, id: &str) -> Result<ItemInfo, Error>
     {
         // Get title and real ID.
-        let store_url = self.url(id);
+        let store_url = self.dataURL(id);
         let content = utils::get(&store_url).await?;
 
         // Get position of ‘{’.

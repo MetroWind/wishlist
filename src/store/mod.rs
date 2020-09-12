@@ -4,7 +4,7 @@ use crate::error::Error;
 mod playstation;
 mod switch;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ItemInfo
 {
     pub name: String,
