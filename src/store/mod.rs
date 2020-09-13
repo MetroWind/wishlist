@@ -4,6 +4,7 @@ use crate::error::Error;
 mod playstation;
 mod switch;
 
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ItemInfo
 {
@@ -15,6 +16,7 @@ pub struct ItemInfo
     pub price_str: String,
 }
 
+#[allow(dead_code)]
 impl ItemInfo
 {
     pub fn new(store: &str, id: &str) -> Self
