@@ -12,7 +12,6 @@ class WishListItem extends React.Component
     {
         const url = `api/get?store=${encodeURIComponent(this.props.store)}&\
 id=${encodeURIComponent(this.props.id)}`;
-        console.log(url);
         fetch(url).then(res => res.json())
             .then(data => this.setState(
                 { name: data.name,
@@ -54,4 +53,3 @@ class WishList extends React.Component
 }
 
 ReactDOM.render(e(WishList, null), document.getElementById('WishlistWrapper'));
-console.log("Loaded.");
