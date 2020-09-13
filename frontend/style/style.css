@@ -55,6 +55,7 @@ table {
 a
 {
     color: var(--color-fg);
+    text-decoration: none;
 }
 
 html
