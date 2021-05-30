@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 
 use std::str::FromStr;
+use std::path;
 use std::path::PathBuf;
 use std::process::exit;
 
@@ -75,6 +76,24 @@ fn loadConfig(specified: Option<&str>) -> Result<config::ConfigParams, Error>
     readConfig(&conf_file)
 }
 
+fn maybeInitDB(conf: &config::ConfigParams) -> Result<(), Error>
+{
+    let db_path = path::Path::new(&conf.db_file);
+    if !db_path.exists()
+    {
+        info!("Database not found. Creating new database at {}...",
+              conf.db_file);
+        let mut d = data::DataManager::new(data::SqliteFilename::File(
+            PathBuf::from(db_path)));
+        d.connect()?;
+        d.init()
+    }
+    else
+    {
+        Ok(())
+    }
+}
+
 fn realMain() -> Result<(), Error>
 {
     let opts = clap::App::new("Wishlist service")
@@ -103,9 +122,10 @@ fn realMain() -> Result<(), Error>
         Some("serve") =>
         {
             let conf = loadConfig(opts.value_of("config"))?;
-            data::initialize()?;
+            maybeInitDB(&conf)?;
+            let server = web::WebHandler::new(&conf);
             info!("Wishlist service starting...");
-            web::start(&conf);
+            server.start();
         },
 
         Some("add") =>
@@ -115,8 +135,18 @@ fn realMain() -> Result<(), Error>
                 store: subopts.value_of("store").unwrap().to_owned(),
                 id: subopts.value_of("id").unwrap().to_owned(),
             };
-            data::initialize()?;
-            data::addItem(&key)?;
+            let conf = loadConfig(opts.value_of("config"))?;
+            maybeInitDB(&conf)?;
+            // Try to get price
+            let rt = tokio::runtime::Runtime::new().map_err(
+                |_| rterr!("Failed to create runtime"))?;
+            let item = rt.block_on(store::Store::new(&key.store)?
+                                   .get(&key.id))?;
+            info!("Adding {} at {}...", item.name, item.price_str);
+            let mut d = data::DataManager::newWithFilename(&conf.db_file);
+            d.connect()?;
+            d.addItem(&item)?;
+            d.addPrice(&item)?;
         },
 
         None =>
@@ -126,7 +156,7 @@ fn realMain() -> Result<(), Error>
 
         Some(a) =>
         {
-            return Err(error!(RuntimeError, format!("Unknown command: {}", a)));
+            return Err(rterr!("Unknown command: {}", a));
         },
     }
     Ok(())

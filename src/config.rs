@@ -14,29 +14,27 @@ pub struct ConfigParams
     /// support up to 2 levels (1 slash at most in the string)…
     pub url_prefix: Option<String>,
     pub port: u16,
+    pub db_file: String,
 }
 
 impl ConfigParams
 {
     pub fn default() -> Self
     {
-        Self { url_prefix: None, port: 8000 }
+        Self { url_prefix: None, port: 8000,
+               db_file: String::from("wishlist.db") }
     }
 
     pub fn fromFile(filename: &std::path::Path) -> Result<Self, Error>
     {
         let mut file = fs::File::open(filename).map_err(
-            |_| error!(RuntimeError, format!("Failed to open file {}",
-                                              filename.to_string_lossy())))?;
+            |_| rterr!("Failed to open file {}", filename.to_string_lossy()))?;
         let mut contents = String::new();
         file.read_to_string(&mut contents).map_err(
-            |_| error!(RuntimeError,
-                        format!("Failed to read file {}",
-                                filename.to_string_lossy())))?;
+            |_| rterr!("Failed to read file {}", filename.to_string_lossy()))?;
 
         toml::from_str(&contents).map_err(
-            |e| error!(RuntimeError,
-                        format!("Failed to parse file {}: {}",
-                                filename.to_string_lossy(), e)))
+            |e| rterr!("Failed to parse file {}: {}",
+                       filename.to_string_lossy(), e))
     }
 }

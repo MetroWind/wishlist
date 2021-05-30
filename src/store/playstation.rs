@@ -38,23 +38,23 @@ impl PlayStation
         let url = self.dataURL(id);
         let content = utils::get(&url).await?;
         let data: json::Value = serde_json::from_str(&content).map_err(
-            |_| error!(RuntimeError, "Failed to parse JSON"))?;
+            |_| rterr!("Failed to parse JSON"))?;
 
         for item in data["included"].as_array().ok_or(
-            error!(RuntimeError, "Failed to get sub-item"))?
+            rterr!("Failed to get sub-item"))?
         {
             if let Some(game_type) = item["attributes"]["game-content-type"].as_str()
             {
                 if game_type == "Full Game" || game_type == "PSN Game"
                 {
                     let name = item["attributes"]["name"].as_str().ok_or(
-                        error!(RuntimeError, "Failed to get item name"))?;
+                        rterr!("Failed to get item name"))?;
                     let price_obj = &item["attributes"]["skus"][0]["prices"]
                         ["non-plus-user"]["actual-price"];
                     let price = price_obj["value"].as_i64().ok_or(
-                        error!(RuntimeError, "Failed to get price"))?;
+                        rterr!("Failed to get price"))?;
                     let price_str = price_obj["display"].as_str().ok_or(
-                        error!(RuntimeError, "Failed to get price string"))?;
+                        rterr!("Failed to get price string"))?;
                     return Ok(ItemInfo{
                         name: name.to_owned(),
                         store: self.name.to_owned(),
@@ -65,6 +65,6 @@ impl PlayStation
                 }
             }
         }
-        Err(error!(RuntimeError, "Failed to retrieve item info"))
+        Err(rterr!("Failed to retrieve item info"))
     }
 }

@@ -8,20 +8,16 @@ pub async fn get(url: &str) -> Result<String, Error>
 {
     let client = reqwest::Client::new();
     client.get(url).header("User-Agent", USER_AGENT)
-        .send().await.map_err(
-            |_| error!(RuntimeError, format!("Failed to get {}", url)))?
+        .send().await.map_err(|_| rterr!("Failed to get {}", url))?
         .text().await.map_err(
-            |_| error!(RuntimeError,
-                       format!("Failed to retrieve content from {}", url)))
+            |_| rterr!("Failed to retrieve content from {}", url))
 }
 
 pub async fn queryRequest(req: reqwest::RequestBuilder) -> Result<String, Error>
 {
     req.header("User-Agent", USER_AGENT)
-        .send().await.map_err(
-            |_| error!(RuntimeError, "Failed to query"))?
-        .text().await.map_err(
-            |_| error!(RuntimeError, "Failed to retrieve content"))
+        .send().await.map_err(|_| rterr!("Failed to query"))?
+        .text().await.map_err(|_| rterr!("Failed to retrieve content"))
 }
 
 pub fn findSubStr<'a>(s: &'a str, begin: &'a str, end: &'a str)

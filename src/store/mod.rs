@@ -4,7 +4,7 @@ use crate::error::Error;
 mod playstation;
 mod switch;
 
-
+/// An abstraction for the info one get when querying a store.
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ItemInfo
 {
@@ -77,7 +77,7 @@ impl Store
                 playstation::PlayStation::new(playstation::Region::HK))),
             "switch-us" => Ok(Self::Switch(
                 switch::Switch::new(switch::Region::US))),
-            _ => Err(error!(RuntimeError, format!("Invalid store: {}", store_name))),
+            _ => Err(rterr!("Invalid store: {}", store_name)),
         }
     }
 }
