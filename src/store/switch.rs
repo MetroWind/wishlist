@@ -90,12 +90,11 @@ impl Switch
         let price = Self::parsePrice(&price_raw)?;
         let price_str = price_data["amount"].as_str().ok_or(
             rterr!("Failed to get price string"))?;
-        return Ok(ItemInfo{
-            name: title.to_owned(),
-            store: self.name.to_owned(),
-            id: id.to_owned(),
-            url: store_url,
-            price: price,
-            price_str: price_str.to_owned() });
+        let mut item = ItemInfo::new(self.name, id);
+        item.name = title.to_owned();
+        item.url = store_url;
+        item.price = price;
+        item.price_str = price_str.to_owned();
+        Ok(item)
     }
 }

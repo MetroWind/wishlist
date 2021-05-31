@@ -15,14 +15,22 @@ pub struct ConfigParams
     pub url_prefix: Option<String>,
     pub port: u16,
     pub db_file: String,
+    pub update_interval_sec: u64,
+    /// Whether to send a telegram message when price drops.
+    pub alert_telegram: bool,
 }
 
 impl ConfigParams
 {
     pub fn default() -> Self
     {
-        Self { url_prefix: None, port: 8000,
-               db_file: String::from("wishlist.db") }
+        Self {
+            url_prefix: None,
+            port: 8000,
+            db_file: String::from("wishlist.db"),
+            update_interval_sec: 3600,
+            alert_telegram: false,
+        }
     }
 
     pub fn fromFile(filename: &std::path::Path) -> Result<Self, Error>

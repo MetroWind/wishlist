@@ -55,13 +55,13 @@ impl PlayStation
                         rterr!("Failed to get price"))?;
                     let price_str = price_obj["display"].as_str().ok_or(
                         rterr!("Failed to get price string"))?;
-                    return Ok(ItemInfo{
-                        name: name.to_owned(),
-                        store: self.name.to_owned(),
-                        id: id.to_owned(),
-                        url: format!("https://store.playstation.com/en-us/product/{}", id),
-                        price: price,
-                        price_str: price_str.to_owned() });
+                    let mut item = ItemInfo::new(self.name, id);
+                    item.name = name.to_owned();
+                    item.url = format!(
+                        "https://store.playstation.com/en-us/product/{}", id);
+                    item.price = price;
+                    item.price_str = price_str.to_owned();
+                    return Ok(item);
                 }
             }
         }

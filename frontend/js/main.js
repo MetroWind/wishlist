@@ -5,27 +5,15 @@ class WishListItem extends React.Component
     constructor(props)
     {
         super(props);
-        this.state = { name: "", url: "", price: "" };
-    }
-
-    componentDidMount()
-    {
-        const url = `api/get?store=${encodeURIComponent(this.props.store)}&\
-id=${encodeURIComponent(this.props.id)}`;
-        fetch(url).then(res => res.json())
-            .then(data => this.setState(
-                { name: data.name,
-                  url: data.url,
-                  price: data.price_str }));
     }
 
     render()
     {
         return e("li", {className: "ListItem"},
                  e("span", {className: "ItemName"},
-                   e("a", {"href": this.state.url, className: "ItemLink"},
-                     this.state.name)),
-                 e("span", {className: "ItemPrice"}, this.state.price),
+                   e("a", {"href": this.props.url, className: "ItemLink"},
+                     this.props.name)),
+                 e("span", {className: "ItemPrice"}, this.props.price),
                 );
     }
 }
@@ -47,7 +35,7 @@ class WishList extends React.Component
 
     render()
     {
-        let items = this.state.items.map((s) => e(WishListItem, {store: s.store, id: s.id, key: s.id}));
+        let items = this.state.items.map((s) => e(WishListItem, {url: s.url, name: s.name, price: s.price_str}));
         return e("ul", {id: "Wishlist"}, items);
     }
 }

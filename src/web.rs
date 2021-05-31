@@ -4,7 +4,6 @@ use warp;
 use warp::reject::Reject;
 use warp::{Filter, Rejection};
 use warp::reply::Reply;
-use warp::http;
 use log::error as log_error;
 use log::info;
 
@@ -58,12 +57,6 @@ fn withOptionalPrefix(prefix: Option<String>) ->
     }
 }
 
-fn replyError(code: u16, msg: &str) -> Box<dyn Reply>
-{
-    Box::new(warp::reply::with_status(warp::reply::json(&ResError::from(msg)),
-                                      http::StatusCode::from_u16(code).unwrap()))
-}
-
 #[derive(Clone)]
 pub struct WebHandler
 {
@@ -106,15 +99,6 @@ impl WebHandler
         Ok(Box::new(warp::reply::json(&items)))
     }
 
-    // async fn get(q: data::ItemKey, cache: &data::Cache) -> Result<Box<dyn Reply>, Rejection>
-    // {
-    //     match cache.get(&q).await
-    //     {
-    //         Ok(i) => Ok(Box::new(warp::reply::json(&i))),
-    //         Err(e) => Ok(replyError(500, &e.to_string())),
-    //     }
-    // }
-
     pub fn start(self)
     {
         let port = self.port;
@@ -122,13 +106,6 @@ impl WebHandler
         let route_list = warp::path(ENTRY).and(warp::path("list"))
             .and(warp::path::end())
             .and_then(move || { self.clone().list() });
-
-        // let route_get = warp::path(ENTRY).and(warp::path("get"))
-        //     .and(warp::query::<data::ItemKey>())
-        //     .and_then(move |key: data::ItemKey| {
-        //         let cache = cache.clone();
-        //         async move { get(key, &cache).await }
-        //     });
 
         let route_fe = warp::any().and(warp::fs::dir("frontend"));
 

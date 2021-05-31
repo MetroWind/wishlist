@@ -1,9 +1,8 @@
 #![allow(non_snake_case)]
 
-use std::str::FromStr;
-use std::path;
 use std::path::PathBuf;
 use std::process::exit;
+use std::str::FromStr;
 
 use log::{debug,info,warn};
 use log::error as log_error;
@@ -17,6 +16,7 @@ mod utils;
 mod web;
 mod data;
 mod config;
+mod middle;
 
 use crate::error::Error;
 
@@ -76,24 +76,6 @@ fn loadConfig(specified: Option<&str>) -> Result<config::ConfigParams, Error>
     readConfig(&conf_file)
 }
 
-fn maybeInitDB(conf: &config::ConfigParams) -> Result<(), Error>
-{
-    let db_path = path::Path::new(&conf.db_file);
-    if !db_path.exists()
-    {
-        info!("Database not found. Creating new database at {}...",
-              conf.db_file);
-        let mut d = data::DataManager::new(data::SqliteFilename::File(
-            PathBuf::from(db_path)));
-        d.connect()?;
-        d.init()
-    }
-    else
-    {
-        Ok(())
-    }
-}
-
 fn realMain() -> Result<(), Error>
 {
     let opts = clap::App::new("Wishlist service")
@@ -108,13 +90,25 @@ fn realMain() -> Result<(), Error>
         .subcommand(clap::App::new("serve")
                     .about("Start API server"))
         .subcommand(clap::App::new("add")
-                    .about("Add item")
+                    .about("Add an item")
                     .arg(clap::Arg::with_name("store")
                          .required(true)
                          .help("Store name"))
                     .arg(clap::Arg::with_name("id")
                          .required(true)
                          .help("Item ID")))
+        .subcommand(clap::App::new("remove")
+                    .about("Remove an item and its price history")
+                    .arg(clap::Arg::with_name("store")
+                         .required(true)
+                         .help("Store name"))
+                    .arg(clap::Arg::with_name("id")
+                         .required(true)
+                         .help("Item ID")))
+        .subcommand(clap::App::new("list")
+                    .about("Print all items"))
+        .subcommand(clap::App::new("update")
+                    .about("Update price of all items"))
         .get_matches();
 
     match opts.subcommand_name()
@@ -122,7 +116,7 @@ fn realMain() -> Result<(), Error>
         Some("serve") =>
         {
             let conf = loadConfig(opts.value_of("config"))?;
-            maybeInitDB(&conf)?;
+            middle::maybeInitDB(&conf)?;
             let server = web::WebHandler::new(&conf);
             info!("Wishlist service starting...");
             server.start();
@@ -130,25 +124,28 @@ fn realMain() -> Result<(), Error>
 
         Some("add") =>
         {
-            let subopts = opts.subcommand_matches("add").unwrap();
-            let key = data::ItemKey{
-                store: subopts.value_of("store").unwrap().to_owned(),
-                id: subopts.value_of("id").unwrap().to_owned(),
-            };
             let conf = loadConfig(opts.value_of("config"))?;
-            maybeInitDB(&conf)?;
-            // Try to get price
-            let rt = tokio::runtime::Runtime::new().map_err(
-                |_| rterr!("Failed to create runtime"))?;
-            let item = rt.block_on(store::Store::new(&key.store)?
-                                   .get(&key.id))?;
-            info!("Adding {} at {}...", item.name, item.price_str);
-            let mut d = data::DataManager::newWithFilename(&conf.db_file);
-            d.connect()?;
-            d.addItem(&item)?;
-            d.addPrice(&item)?;
+            let subopts = opts.subcommand_matches("add").unwrap();
+            middle::addItem(subopts.value_of("store").unwrap(),
+                            subopts.value_of("id").unwrap(), conf)?;
         },
-
+        Some("remove") =>
+        {
+            let subopts = opts.subcommand_matches("remove").unwrap();
+            let conf = loadConfig(opts.value_of("config"))?;
+            middle::removeItem(subopts.value_of("store").unwrap(),
+                               subopts.value_of("id").unwrap(), conf)?;
+        },
+        Some("list") =>
+        {
+            let conf = loadConfig(opts.value_of("config"))?;
+            middle::listItems(conf)?;
+        },
+        Some("update") =>
+        {
+            let conf = loadConfig(opts.value_of("config"))?;
+            middle::updateItemPrices(conf)?;
+        },
         None =>
         {
             println!("{}", opts.usage());

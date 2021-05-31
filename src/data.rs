@@ -1,3 +1,5 @@
+use std::time;
+
 use rusqlite as sql;
 use rusqlite::OptionalExtension;
 use chrono::prelude::*;
@@ -81,7 +83,9 @@ impl DataManager
                   store TEXT,
                   id TEXT,
                   name TEXT,
-                  url TEXT
+                  url TEXT,
+                  alert_price INTEGER,
+                  update_interval INTEGER
                   )", []).map_err(
             |e| error!(DataError, "Failed to create table: {}", e))?;
 
@@ -105,16 +109,45 @@ impl DataManager
         {
             return Ok(());
         }
+        let alert_price: i64 = match item.alert_price
+        {
+            None => -1,
+            Some(price) => price as i64,
+        };
+        let interval: i64 = match item.update_interval
+        {
+            None => 0,
+            Some(dt) => dt.as_secs() as i64,
+        };
         let conn = self.confirmConnection()?;
         let changed_row_count = conn.execute(
-            "INSERT INTO wishlist (store, id, name, url)
-             VALUES (?, ?, ?, ?)",
-            [&item.store, &item.id, &item.name, &item.url]).map_err(
-            |_| error!(DataError, "Failed to add item"))?;
+            "INSERT INTO wishlist (store, id, name, url, alert_price,
+                                   update_interval)
+             VALUES (?, ?, ?, ?, ?, ?)",
+            sql::params![&item.store, &item.id, &item.name, &item.url,
+                         alert_price, interval])
+            .map_err(|_| error!(DataError, "Failed to add item"))?;
         if changed_row_count != 1
         {
             return Err(error!(DataError, "Invalid insert happened"));
         }
+        Ok(())
+    }
+
+    pub fn removeItem(&self, item: ItemKey) -> Result<(), Error>
+    {
+        let rowid: i64 = match self.findItem(item.clone())?
+        {
+            None => {return Err(rterr!("Item not found"));},
+            Some(id) => id,
+        };
+
+        let conn = self.confirmConnection()?;
+        conn.execute("DELETE FROM wishlist WHERE internal_id = ?", [rowid])
+            .map_err(|_| error!(DataError, "Failed to remove item"))?;
+
+        conn.execute("DELETE FROM price WHERE item_id = ?", [rowid])
+            .map_err(|_| error!(DataError, "Failed to remove item prices"))?;
         Ok(())
     }
 
@@ -125,6 +158,24 @@ impl DataManager
         let mut result = ItemInfo::new(&store, &id);
         result.name = row.get(3)?;
         result.url = row.get(4)?;
+        let p: i64 = row.get(5)?;
+        result.alert_price = if p == -1
+        {
+            None
+        }
+        else
+        {
+            Some(p as u64)
+        };
+        let dt: i64 = row.get(6)?;
+        result.update_interval = if dt == 0
+        {
+            None
+        }
+        else
+        {
+            Some(time::Duration::new(dt as u64, 0))
+        };
         Ok((row.get(0)?, result))
     }
 
@@ -141,8 +192,8 @@ impl DataManager
         {
             let item_pair = item_pair.map_err(
                 |_| error!(DataError, "Failed to get one of the items"))?;
-            let mut cmd = conn.prepare("SELECT price, price_str FROM price WHERE
-                item_id = ? ORDER BY time DESC LIMIT 1").map_err(
+            let mut cmd = conn.prepare("SELECT price, price_str, time FROM price
+                WHERE item_id = ? ORDER BY time DESC LIMIT 1").map_err(
                 |_| error!(DataError,
                            "Failed to compile statement to get price"))?;
             // Item_pair is (rowid, item).
@@ -151,6 +202,8 @@ impl DataManager
                     let mut item = item_pair.1;
                     item.price = row.get(0)?;
                     item.price_str = row.get(1)?;
+                    item.last_update = DateTime::<Utc>::from_utc(
+                        NaiveDateTime::from_timestamp(row.get(2)?, 0), Utc);
                     Ok(item)
                 }).map_err(|_| error!(DataError, "Failed to get price"))?);
         }
@@ -204,7 +257,7 @@ mod tests
     #[test]
     fn db_creation() -> Result<(), AnyError>
     {
-        let mut data = newDataManager()?;
+        let data = newDataManager()?;
         let conn = data.confirmConnection()?;
         let mut cmd = conn.prepare(
             "SELECT name FROM sqlite_master WHERE type='table' AND
@@ -295,6 +348,42 @@ mod tests
             [item2.id], |row| row.get(0))?;
         assert_eq!(count_item2_prices, 2);
 
+        Ok(())
+    }
+
+    #[test]
+    fn remove_item() -> Result<(), AnyError>
+    {
+        let data = newDataManager()?;
+
+        let mut item1 = ItemInfo::new("switch", "id1");
+        item1.name = "aaa".to_owned();
+        item1.url = "bbb".to_owned();
+        item1.price = 100;
+        item1.price_str = "$1.00".to_owned();
+
+        let mut item2 = ItemInfo::new("ps", "id2");
+        item2.name = "xxx".to_owned();
+        item2.url = "yyy".to_owned();
+        item2.price = 200;
+        item2.price_str = "$2.00".to_owned();
+
+        data.addItem(&item1)?;
+        data.addPrice(&item1)?;
+        data.addItem(&item2)?;
+        data.addPrice(&item2)?;
+
+        data.removeItem(ItemKey::fromItem(&item1))?;
+        let items = data.getItems()?;
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].id, item2.id);
+
+        let conn = data.confirmConnection()?;
+        let count_item1_prices: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM price where id = ?",
+            [item1.id], |row| row.get(0))?;
+
+        assert_eq!(count_item1_prices, 0);
         Ok(())
     }
 }
