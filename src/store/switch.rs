@@ -52,22 +52,6 @@ impl Switch
         Ok((title, real_id))
     }
 
-    /// “39.99” -> 3999, “15” -> 1500
-    fn parsePrice(price_raw: &str) -> Result<i64, Error>
-    {
-        if price_raw.find(".").is_none()
-        {
-            price_raw.parse::<i64>().map_err(
-                |_| rterr!("Failed to parse price: {}", price_raw))
-                .map(|x| x * 100)
-        }
-        else
-        {
-            price_raw.replace(".", "").parse().map_err(
-                |_| rterr!("Failed to parse price: {}", price_raw))
-        }
-    }
-
     pub async fn get(&self, id: &str) -> Result<ItemInfo, Error>
     {
         // Get title and real ID.
@@ -87,7 +71,7 @@ impl Switch
         let price_data = &data["prices"][0]["regular_price"];
         let price_raw = price_data["raw_value"].as_str().ok_or(
             rterr!("Failed to get price"))?;
-        let price = Self::parsePrice(&price_raw)?;
+        let price = utils::parsePrice(&price_raw)?;
         let price_str = price_data["amount"].as_str().ok_or(
             rterr!("Failed to get price string"))?;
         let mut item = ItemInfo::new(self.name, id);

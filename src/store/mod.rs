@@ -8,6 +8,7 @@ use chrono::serde::ts_seconds::serialize as to_ts;
 use crate::error::Error;
 mod playstation;
 mod switch;
+mod amazon;
 
 /// An abstraction for the info one get when querying a store.
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -78,6 +79,7 @@ store_enum!
 {
     PlayStation(playstation::PlayStation),
     Switch(switch::Switch),
+    Amazon(amazon::Amazon),
 }
 
 impl Store
@@ -92,6 +94,7 @@ impl Store
                 playstation::PlayStation::new(playstation::Region::HK))),
             "switch-us" => Ok(Self::Switch(
                 switch::Switch::new(switch::Region::US))),
+            "amazon-us" => Ok(Self::Amazon(amazon::Amazon::new())),
             _ => Err(rterr!("Invalid store: {}", store_name)),
         }
     }

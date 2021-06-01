@@ -8,7 +8,7 @@ edition = "2018"
 lto = true
 
 [dependencies]
-reqwest = ">=0.10"
+reqwest = { version = ">=0.10", features = ["gzip", "brotli"] }
 tokio = { version = ">=0.2", features = ["rt-multi-thread", "process"] }
 serde = { version = ">=1.0", features = ["derive"] }
 serde_json = ">=1.0"
@@ -19,3 +19,4 @@ clap = ">=2.33"
 toml = ">=0.5"
 rusqlite = ">=0.25"
 chrono = { version = ">=0.4", features = ["serde"] }
+scraper = ">=0.12"

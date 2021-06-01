@@ -43,3 +43,19 @@ pub fn findSubStr<'a>(s: &'a str, begin: &'a str, end: &'a str)
 
     Some((&s[start..stop], start, stop))
 }
+
+/// “39.99” -> 3999, “15” -> 1500
+pub fn parsePrice(price_raw: &str) -> Result<i64, Error>
+{
+    if price_raw.find(".").is_none()
+    {
+        price_raw.parse::<i64>().map_err(
+            |_| rterr!("Failed to parse price: {}", price_raw))
+            .map(|x| x * 100)
+    }
+    else
+    {
+        price_raw.replace(".", "").parse().map_err(
+            |_| rterr!("Failed to parse price: {}", price_raw))
+    }
+}
