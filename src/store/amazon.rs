@@ -127,8 +127,6 @@ mod tests
     use super::*;
     use tokio;
 
-    type AnyError = Box<dyn std::error::Error>;
-
     #[test]
     fn get_price() -> Result<(), Error>
     {

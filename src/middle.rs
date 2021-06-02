@@ -38,11 +38,14 @@ async fn updatePrice(item: store::ItemInfo) -> Result<store::ItemInfo, Error>
     s.get(&item.id).await
 }
 
-async fn alert(item: &store::ItemInfo) -> Result<(), Error>
+async fn alert(item: &store::ItemInfo, conf: &config::ConfigParams) ->
+    Result<(), Error>
 {
+    if conf.telegram_notifier.is_none() { return Ok(()); }
+
     let msg = format!("Price of [{}]({}) is now at {}!",
                       item.name, item.url, item.price_str);
-    let mut child = Command::new("telegram-notify-bot")
+    let mut child = Command::new(conf.telegram_notifier.clone().unwrap())
         .stdin(Stdio::piped()).spawn().map_err(
             |_| rterr!("Failed to spawn telegram-notify-bot"))?;
     let child_stdin = child.stdin.as_mut().unwrap();
@@ -52,11 +55,12 @@ async fn alert(item: &store::ItemInfo) -> Result<(), Error>
     Ok(())
 }
 
-async fn updatePrices(items: Vec<store::ItemInfo>, default_interval: Duration) ->
+async fn updatePrices(items: Vec<store::ItemInfo>, conf: config::ConfigParams) ->
     Result<Vec<store::ItemInfo>, Error>
 {
     let now = Utc::now();
     let mut result: Vec<store::ItemInfo> = Vec::new();
+    let default_interval = Duration::new(conf.update_interval_sec, 0);
     for item in items
     {
         let interval = chrono::Duration::from_std(
@@ -84,7 +88,7 @@ async fn updatePrices(items: Vec<store::ItemInfo>, default_interval: Duration) -
                   item_with_new_price.name, item_with_new_price.price_str);
             if item_with_new_price.price < orig_price
             {
-                if let Err(err) = alert(&item_with_new_price).await
+                if let Err(err) = alert(&item_with_new_price, &conf).await
                 {
                     log_error!("{}", err);
                 }
@@ -136,15 +140,12 @@ pub fn listItems(conf: config::ConfigParams) -> Result<(), Error>
 
 pub fn updateItemPrices(conf: config::ConfigParams) -> Result<(), Error>
 {
-    let default_interval = Duration::new(conf.update_interval_sec, 0);
-
     let mut d = data::DataManager::newWithFilename(&conf.db_file);
     d.connect()?;
     let rt = tokio::runtime::Runtime::new().map_err(
         |_| rterr!("Failed to create runtime"))?;
     info!("Updating prices...");
-    let items = rt.block_on(
-        updatePrices(d.getItems()?, default_interval))?;
+    let items = rt.block_on(updatePrices(d.getItems()?, conf))?;
     for item in items
     {
         d.addPrice(&item)?;

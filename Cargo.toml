@@ -8,8 +8,8 @@ edition = "2018"
 lto = true
 
 [dependencies]
-reqwest = { version = ">=0.10", features = ["gzip", "brotli"] }
-tokio = { version = ">=0.2", features = ["rt-multi-thread", "process"] }
+reqwest = { version = ">=0.11", features = ["gzip", "brotli"] }
+tokio = { version = ">=1.6", features = ["rt-multi-thread", "process"] }
 serde = { version = ">=1.0", features = ["derive"] }
 serde_json = ">=1.0"
 warp = ">=0.2"

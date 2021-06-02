@@ -16,8 +16,9 @@ pub struct ConfigParams
     pub port: u16,
     pub db_file: String,
     pub update_interval_sec: u64,
-    /// Whether to send a telegram message when price drops.
-    pub alert_telegram: bool,
+    /// Path to the Telegram notifier. If this is set, a Telegram
+    /// message will be sent when price drops.
+    pub telegram_notifier: Option<String>,
 }
 
 impl ConfigParams
@@ -29,7 +30,7 @@ impl ConfigParams
             port: 8000,
             db_file: String::from("wishlist.db"),
             update_interval_sec: 3600,
-            alert_telegram: false,
+            telegram_notifier: None,
         }
     }
 
