@@ -120,6 +120,7 @@ span.ItemPrice
 path.PriceLine
 {
     stroke: var(--color-fg);
+    fill: none;
 }
 
 @media (max-width: 500px)

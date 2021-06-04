@@ -50,22 +50,41 @@ class WishListItem extends React.Component
         const HeightInner = Height - Margin.top - Margin.bottom;
 
         const Data = this.price_history;
+        // Add a data point for now, with the same price as the last
+        // data point.
+        Data.push({time: Date.now()/1000, price: Data[Data.length-1].price});
+        let ScaleX = d3.scaleTime().range([0, WidthInner])
+            .domain(d3.extent(Data, pp => new Date(pp.time*1000)));
+
+        // “Inteligently” choose Y range. If the data spans a large
+        // range (larger than 1/5 of max-y), use 0–max y, otherwise
+        // use min y–max y. Padding is added to the top and bottom if
+        // needed.
+        let YRange = d3.extent(Data, pp => pp.price);
+        var YMin = YRange[0];
+        if((YRange[1] - YRange[0]) < 0.2 * YRange[1])
+        {
+            YMin = YMin - (YRange[1] - YMin) * 0.1;
+        }
+        else
+        {
+            YMin = 0;
+        }
+        var YMax = YRange[1] + (YRange[1] - YMin) * 0.1;
+        let ScaleY = d3.scaleLinear().range([HeightInner, 0]).domain([YMin, YMax]);
+
         let Canvas = d3.select(`#PriceChart-${this.props.store}-${this.props.in_store_id}`)
             .append("svg").attr("width",  Width).attr("height", Height);
 
         let Plot = Canvas.append("g")
             .attr("transform", `translate(${Margin.left}, ${Margin.top})`);
         let Line = d3.line()
-            .x(pp => new Date(pp.time*1000))
-            .y(pp => pp.price)
+            .x(pp => ScaleX(new Date(pp.time*1000)))
+            .y(pp => ScaleY(pp.price))
             .curve(d3.curveStepAfter);
         Plot.append("path").attr("class", "PriceLine")
             .attr("d", (d,i) => Line(Data)
             );
-        var ScaleX = d3.scaleTime().range([0, WidthInner])
-            .domain(d3.extent(Data, pp => new Date(pp.time*1000)));
-        var ScaleY = d3.scaleLinear().range([HeightInner, 0])
-            .domain([0, d3.max(Data, pp => pp.price)]);
 
         var AxisX = d3.axisBottom(ScaleX);
         var AxisY = d3.axisLeft(ScaleY);
