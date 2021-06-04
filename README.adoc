@@ -1,0 +1,156 @@
+= Wishlist
+
+A naively simple self-hosted wish list.
+
+== Introduction
+
+This is a small program to monitor the price of items in various
+online stores. Given an item “identifier”, it scraps the price from an
+online resource provided by the store, and persists it in a local
+database. It has the following features:
+
+* It has a web interface to list all the items it monitors and their
+  current price.
+* The price history is plotted on the web interface
+* It sends a Telegram message whenever there is a price drop.
+* It has a command line interface to manage the items.
+
+See https://darksair.org/wishlist/[my personal wishlist] for an
+example.
+
+It does not have (and not plan to)
+
+* User account management
+* Remote management (web or CLI)
+
+Currently the following online stores are supported:
+
+* PlayStation 4 games (US & HK)
+* Nintendo Switch games US
+* Amazon US
+
+== Installation & usage
+
+The program requires SQLite 3.
+
+The executable itself is easy to compile and install—just run `cargo
+build --release` and copy the binary to anywhere you want. However, in
+order for it to work properly, there are some more pieces to the
+puzzle.
+
+TLDR:
+
+. Compile and install the executable.
+. Configure reverse proxy and copy content of the `frontend` directory
+into reverse proxy’s static file directory.
+. Copy systemd service and timer files.
+. Maybe configure Telegram controller.
+. Add items you want to monitor.
+
+=== Configuration
+
+The program expects a configuration file named `wishlist.toml`. It
+looks at the “current directory” for it, and if not found,
+`/etc/wishlist.toml`. A configuration file looks like this (showing
+default values if not specified otherwise):
+
+[source,toml]
+----
+# The URL “directory” where the web interface runs under. For example
+# if this is “wishlist”, the web interface will be at
+# https://your.domain/wishlist/. Empty if not set.
+url_prefix = "wishlist"
+# Listening port of the HTTP server
+port = 8000
+# Path of the database file
+db_file = "wishlist.db"
+# The default price update interval
+update_interval_sec = 3600
+# Path of the Telegram controller. No Telegram notifications if
+# not set.
+telegram_notifier = "/path/to/telegram-notify-bot"
+----
+
+If the configuration file is not found, it loads the default settings.
+
+=== Web interface
+
+For the web interface, run `wishlist serve`. This starts an HTTP
+server at the port specified in the configuration. As always, it is
+recommended to run behind a reverse proxy. This provides the “API
+server”. I have this piece in my Nginx configuration:
+----
+location /wishlist/api {
+    proxy_pass http://localhost:3585/wishlist/api;
+}
+----
+given that I have `url_prefix = "wishlist"` and `port = 3585`.
+
+The front-end is mostly a separate issue. All the front-end files are
+in the `frontend` directory in the repo. They are just static files,
+and you are free to let the reverse proxy handle them (keep in mind of
+`url_prefix` if set). Or you can put the `frontend` directory in the
+“current directory”, to let the builtin HTTP server serve them.
+
+Of course, you may want to use a daemon manager like systemd to
+manage it. A systemd service file is included in the `etc` directory
+in the repo.
+
+=== Periodic update
+
+The HTTP server itself provides read-only access to the item list and
+prices. In order to monitor price changes and update the database,
+another instance is needed to run periodically with sub-command
+`update` (i.e. run `wishlist update`). There are two factors that
+determines how frequently the database will be updated:
+
+* Each item has an update interval. Prices will not be updated more
+  frequently than indicated by this value, no matter how frequently
+  you run `wishlist update`. Currently this is hard-coded to be 10
+  minutes for Amazon, and 1 hour for other stores.
+
+* The frequency you run `wishlist update`.
+
+I use systemd to manage updates. A timer file and a service file is
+included in the `etc` directory.
+
+=== Telegram notification
+
+The program relies on
+https://github.com/MetroWind/small-tools/tree/master/telegram-bot-controller[telegram-bot-controller]
+to send Telegram messages. So you will need to deploy that if you want
+Telegram notifications. In the future I may absorb this capability here.
+
+=== Initial setup
+
+You need to tell the program what items you want to monitor. This is
+done by running `wishlist add` followed by a store name and an
+item ID. Valid store names are listed at the end of
+`src/store/mod.rs`. An item ID is usually part of the URL of the
+product page in the store. For example, for Amazon item at
+`https://www.amazon.com/AmazonBasics-Shaped-Silicone-Combo-Black/dp/B07LBDVJKN/`,
+`B07LBDVJKN` is the ID. Therefore you can run the following command to
+add it to the database:
+
+----
+wishlist add amazon-us B07LBDVJKN
+----
+
+For Switch games, for example,
+`https://www.nintendo.com/games/detail/super-mario-maker-2-switch/`,
+the ID is `super-mario-maker-2-switch`. The command to add it is
+
+----
+wishlist add switch-us super-mario-maker-2-switch
+----
+
+For PlayStation games it is actually a lot more complicated, because
+products there can have multiple editions in the same page. I am too
+lazy to dive into details here, just an example: for the game at
+https://store.playstation.com/en-us/product/UP0102-PPSA01556_00-VILLAGEXRE7COMPB,
+the ID of “standard edition” is
+`UP0102-PPSA01556_00-VILLAGEFULLGAMEX`.
+
+Ideally the program should be able to simply take a URL of the
+product, and automatically figure out the store and the ID(s). I am
+working on this. For now you will have to do this manually.

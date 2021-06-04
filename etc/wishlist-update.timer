@@ -1,0 +1,10 @@
+[Unit]
+Description=Wishlist update
+
+[Timer]
+# Every 10 minutes
+OnCalendar=*:0/10
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,14 @@
+[Unit]
+Description=Wishlist HTTP server
+After=network.target
+
+[Service]
+ExecStart=/srv/wishlist/wishlist serve
+WorkingDirectory=/srv/wishlist
+Restart=on-abort
+KillSignal=SIGINT
+User=some_user
+Group=some_group
+
+[Install]
+WantedBy=multi-user.target

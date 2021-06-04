@@ -1,0 +1,9 @@
+[Unit]
+Description=Wishlist update
+
+[Service]
+Type=oneshot
+ExecStart=/srv/wishlist/wishlist update
+WorkingDirectory=/srv/wishlist
+User=some_user
+Group=some_group
