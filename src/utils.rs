@@ -1,4 +1,5 @@
 use reqwest;
+use chrono;
 
 use crate::error::Error;
 
@@ -58,4 +59,10 @@ pub fn parsePrice(price_raw: &str) -> Result<i64, Error>
         price_raw.replace(".", "").parse().map_err(
             |_| rterr!("Failed to parse price: {}", price_raw))
     }
+}
+
+pub fn timestampToUtcTime(ts: i64) -> chrono::DateTime<chrono::Utc>
+{
+    chrono::DateTime::<chrono::Utc>::from_utc(
+        chrono::NaiveDateTime::from_timestamp(ts, 0), chrono::Utc)
 }

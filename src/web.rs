@@ -57,6 +57,13 @@ fn withOptionalPrefix(prefix: Option<String>) ->
     }
 }
 
+#[derive(Deserialize, Serialize)]
+struct PricePoint
+{
+    time: u64,
+    price: f64,
+}
+
 #[derive(Clone)]
 pub struct WebHandler
 {
@@ -99,13 +106,35 @@ impl WebHandler
         Ok(Box::new(warp::reply::json(&items)))
     }
 
+    async fn priceHistory(self, store: String, id: String) ->
+        Result<Box<dyn Reply>, Rejection>
+    {
+        let mut d = data::DataManager::new(data::SqliteFilename::File(
+            std::path::PathBuf::from(self.db_file)));
+        web_error!(d.connect());
+        let item = data::ItemKey{ store: store, id: id };
+        let points: Vec<PricePoint> = d.priceHistory(item)?.iter().map(
+            |p| PricePoint{
+                time: p.time.timestamp() as u64,
+                price: (p.price as f64) / 100.0,
+            }).collect();
+
+        Ok(Box::new(warp::reply::json(&points)))
+    }
+
     pub fn start(self)
     {
         let port = self.port;
         let url_prefix: Option<String> = self.url_prefix.clone();
+        let handler = self.clone();
         let route_list = warp::path(ENTRY).and(warp::path("list"))
             .and(warp::path::end())
-            .and_then(move || { self.clone().list() });
+            .and_then(move || { handler.clone().list() });
+        let route_history = warp::path(ENTRY).and(warp::path("price_history"))
+            .and(warp::path::param()).and(warp::path::param())
+            .and_then(move |store: String, id: String| {
+                self.clone().priceHistory(store, id)
+            });
 
         let route_fe = warp::any().and(warp::fs::dir("frontend"));
 
@@ -114,7 +143,7 @@ impl WebHandler
               url_prefix.as_ref().unwrap_or(&String::new()));
         rt.block_on(
             warp::serve(withOptionalPrefix(url_prefix)
-                        .and(route_list.or(route_fe)))
+                        .and(route_list.or(route_history).or(route_fe)))
                 .try_bind(([127, 0, 0, 1], port)));
     }
 }

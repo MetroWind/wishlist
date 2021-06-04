@@ -83,12 +83,18 @@ ul#Wishlist
 
 li.ListItem
 {
+    display: inline-block;
+    padding-left: 10px;
+    padding-right: 10px;
+    width: 100%;
+}
+
+.ItemInfo
+{
     display: flex;
     flex-wrap: nowrap;
     align-items: center;
     height: 40px;
-    padding-left: 10px;
-    padding-right: 10px;
 }
 
 li.ListItem:hover
@@ -109,6 +115,11 @@ span.ItemPrice
     flex-shrink: 0;
     width: 5rem;
     text-align: right;
+}
+
+path.PriceLine
+{
+    stroke: var(--color-fg);
 }
 
 @media (max-width: 500px)

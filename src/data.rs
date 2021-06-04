@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::error;
 use crate::error::Error as Error;
 use crate::store::ItemInfo;
+use crate::utils;
 
 pub enum SqliteFilename { InMemory, File(std::path::PathBuf) }
 
@@ -24,6 +25,12 @@ impl ItemKey
     {
         Self { store: item.store.clone(), id: item.id.clone() }
     }
+}
+
+pub struct PricePoint
+{
+    pub time: DateTime<Utc>,
+    pub price: u64,             // Price * 100
 }
 
 pub struct DataManager
@@ -202,8 +209,7 @@ impl DataManager
                     let mut item = item_pair.1;
                     item.price = row.get(0)?;
                     item.price_str = row.get(1)?;
-                    item.last_update = DateTime::<Utc>::from_utc(
-                        NaiveDateTime::from_timestamp(row.get(2)?, 0), Utc);
+                    item.last_update = utils::timestampToUtcTime(row.get(2)?);
                     Ok(item)
                 }).map_err(|_| error!(DataError, "Failed to get price"))?);
         }
@@ -234,6 +240,29 @@ impl DataManager
             |e| error!(DataError, "Failed to add price: {}", e))?;
         Ok(())
     }
+
+    pub fn priceHistory(&self, item: ItemKey) -> Result<Vec<PricePoint>, Error>
+    {
+        let rowid = self.findItem(item)?.ok_or_else(
+            || error!(DataError, "Item not found"))?;
+        let conn = self.confirmConnection()?;
+        let mut cmd = conn.prepare(
+            "SELECT time, price FROM price WHERE item_id = ? ORDER BY time")
+            .map_err(|_| error!(
+                DataError,
+                "Failed to compile statement to query price history"))?;
+        let result: Result<Vec<PricePoint>, rusqlite::Error> =
+            cmd.query_map([rowid], |row| {
+                Ok(PricePoint {
+                    time: utils::timestampToUtcTime(row.get(0)?),
+                    price: row.get(1)?,
+                })
+            }).map_err(|e| error!(
+                DataError, "Failed to get price history: {}", e))?.collect();
+        result.map_err(
+            |e| error!(DataError, "Failed to extract price history: {}", e))
+    }
+
 }
 
 #[cfg(test)]
