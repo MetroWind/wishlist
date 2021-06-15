@@ -43,7 +43,7 @@ class WishListItem extends React.Component
     drawPriceChart()
     {
         let Wrapper = document.getElementById(`PriceChart-${this.props.store}-${this.props.in_store_id}`);
-        const Margin = {top: 20, right: 15, bottom: 25, left: 32};
+        const Margin = {top: 5, right: 15, bottom: 25, left: 32};
         const Height = 150;
         const Width = Wrapper.clientWidth;
         const WidthInner = Width - Margin.left - Margin.right;
